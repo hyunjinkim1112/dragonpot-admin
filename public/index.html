@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dragon Pot Admin</title>
+  <script type="module">
+    // 🔥 Firebase SDK imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // 🔑 YOUR Firebase config (copy from GoogleService-Info.plist or console)
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUserId = null;
+
+    // 🔐 Login
+    window.login = async function () {
+      const email = document.getElementById("adminEmail").value;
+      const password = document.getElementById("adminPassword").value;
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Login successful!");
+        document.getElementById("adminPanel").style.display = "block";
+      } catch (error) {
+        alert("Login failed: " + error.message);
+      }
+    };
+
+    // 🔍 Search user by email
+    window.searchUser = async function () {
+      const email = document.getElementById("searchEmail").value;
+
+      const q = query(
+        collection(db, "users"),
+        where("email", "==", email)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        alert("User not found");
+        return;
+      }
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        currentUserId = docSnap.id;
+
+        document.getElementById("userInfo").innerHTML = `
+          <p><strong>Name:</strong> ${data.name}</p>
+          <p><strong>Email:</strong> ${data.email}</p>
+          <p><strong>Stamps:</strong> <span id="stampCount">${data.stampCount}</span></p>
+        `;
+      });
+    };
+
+    // ➕ Add stamp
+    window.addStamp = async function () {
+      if (!currentUserId) return;
+
+      const ref = doc(db, "users", currentUserId);
+
+      await updateDoc(ref, {
+        stampCount: increment(1)
+      });
+
+      refreshStamp(1);
+    };
+
+    // ➖ Remove stamp
+    window.removeStamp = async function () {
+      if (!currentUserId) return;
+
+      const ref = doc(db, "users", currentUserId);
+
+      await updateDoc(ref, {
+        stampCount: increment(-1)
+      });
+
+      refreshStamp(-1);
+    };
+
+    function refreshStamp(change) {
+      const el = document.getElementById("stampCount");
+      let current = parseInt(el.innerText);
+      el.innerText = current + change;
+    }
+
+  </script>
+
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+    }
+
+    #adminPanel {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .card {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🔥 Dragon Pot Admin</h2>
+
+<!-- Login -->
+<div class="card">
+  <h3>Admin Login</h3>
+  <input id="adminEmail" placeholder="Admin Email" />
+  <input id="adminPassword" type="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- Admin Panel -->
+<div id="adminPanel">
+
+  <div class="card">
+    <h3>Search User</h3>
+    <input id="searchEmail" placeholder="User Email" />
+    <button onclick="searchUser()">Search</button>
+  </div>
+
+  <div class="card" id="userInfo"></div>
+
+  <div class="card">
+    <button onclick="addStamp()">➕ Add Stamp</button>
+    <button onclick="removeStamp()">➖ Remove Stamp</button>
+  </div>
+
+</div>
+
+</body>
+</html>
